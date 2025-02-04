@@ -1,0 +1,5 @@
+/database.db
+.vscode
+__pycache__
+/games.json
+/characters.json
