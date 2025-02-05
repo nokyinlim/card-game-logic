@@ -180,6 +180,20 @@ async def create_account(request: Request, session: SessionDep):
     print("username: ", username)
     print("hashed_password: ", hashed_password)
 
+    account = session.exec(
+        select(Account).where(Account.username == username).where(Account.hashed_password == hashed_password).with_for_update()
+    )
+
+    if account:
+        return {"title": "Account Already Exists", "message": "You have already created an account!"}
+
+    account = session.exec(
+        select(Account).where(Account.username == username).with_for_update()
+    )
+
+    if account:
+        return {"title": "Username Taken", "message": "There is already an account with this username!"}
+
     account = Account(
         username=username,
         hashed_password=hashed_password
@@ -192,6 +206,8 @@ async def create_account(request: Request, session: SessionDep):
     session.add(db_account)
     session.commit()
     session.refresh(db_account)
+
+    return {"title": "Account Created Successfully", "message": "Your games, stats and scores are now being saved."}
 
 
 
