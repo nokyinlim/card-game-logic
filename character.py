@@ -21,9 +21,9 @@ class StatModifier:
     stat: str -> ID of the stat
     value: float -> Value modifier of the stat
     modifier_type: str in ["add", "multiply_base", "multiplicative"]
-        add -> Directly adds the value
-            multiply_base -> Multiplies by the base value
-                multiplicative -> Multiplies the final value (including other multiplicative stat modifiers)
+        add: Directly adds the value (flat, additive)
+        multiply_base: Multiplies by the base value (e.g. 0.2 is 20% increase)
+        multiplicative: Multiplies the final value (including other multiplicative stat modifiers, where 1.2 is 20% increase)
     duration: int -> Duration of the modifier in turns
     targetsSelf: bool -> Whether the modifier targets self or the target (if specified; defaults always to Self)
     applyer: Character -> Character that applied the modifier (unused for now)
@@ -205,6 +205,7 @@ max_mp: int -> Tracks the maximum mana of the character
 skill_points: int -> Tracks skill points (abilities)
 max_skill_points: int -> Max Skill Points (abilities)
 attack_damage: int -> Tracks the attack damage of the character
+spell_damage: int -> Tracks the spell damage of the character
 critical_chance: float -> Critical hit chance of the character
 defense: int -> Tracks the defense of the character
 magic_defense: int -> Tracks magic defense of the character
@@ -584,9 +585,10 @@ class Character:
                             self.stat_modifiers.append(effect)
                 case "damage":
                     print(f"{self.name} used ability: {spell.name}!")
+                    damage = spell.damage["damage"] + self.get_stat("spell_damage")
                     for target in targets:
                         if target:
-                            target.damage_character(spell.damage["damage"], "magic", spell.damage["element"])
+                            target.damage_character(damage, "magic", spell.damage["element"])
                         pass
                     if spell.effects:
                         for effect in spell.effects:
