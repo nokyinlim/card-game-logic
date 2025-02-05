@@ -130,12 +130,13 @@ async def generate_code(request: Request, session: SessionDep) -> GameBase:
 
     games[current_code] = {
         "characters": [character.character_to_json()],
-        "playerCharacters": [character.character_to_json()],
+        "playerCharacters": [player_id],
         "enemyCharacters": [],
         "current_turn": [0],
         "players": [player_id],
-        "locked_players": [],
-        "active_player": [player_id]
+        "player_count": 1
+        # "locked_players": []
+        # "active_player": [player_id]
     }
 
     writeGames(games)
@@ -166,9 +167,9 @@ async def get_account(request: Request, session: SessionDep):
 
 
     if not account:
-        raise HTTPException(status_code=404, detail="Account Not Found")
+        raise HTTPException(status_code=404, detail="Incorrect Account Details!")
 
-    return account
+    return account.__dict__()
 
 @app.post("/create-account")
 async def create_account(request: Request, session: SessionDep):
@@ -221,6 +222,7 @@ async def join_game(request: Request, session: SessionDep) -> dict:
     characterID = data.get('characterID')
     gameCode = data.get('game_code')
     playerID = data.get('player_id')
+    character_team = data.get('character_team', 'enemyCharacters')
     
     character: Character = getDefaultCharacterFromStr(characterID, True)
     jg = JoinGame(
@@ -240,9 +242,10 @@ async def join_game(request: Request, session: SessionDep) -> dict:
 
     games = readGames()
     games[jg.game_code]["characters"].append(character.character_to_json())
-    games[jg.game_code]["enemyCharacters"].append(character.character_to_json())
+    games[jg.game_code][character_team].append(jg.player_id)
     games[jg.game_code]["players"].append(jg.player_id)
-    games[jg.game_code]["locked_players"].append(jg.player_id)
+    games[jg.game_code]["player_count"] += 1
+    # games[jg.game_code]["locked_players"].append(jg.player_id)
 
     writeGames(games)
 
@@ -296,6 +299,15 @@ async def game_data(request: Request):
         raise HTTPException(status_code=404,detail="Incorrect Game Code")
 
     return game
+
+@app.post('/start-game')
+async def start_game(request: Request, session: SessionDep):
+    data = await request.json()
+    game_code: str = data.get('game_code')
+    games = readGames()
+    game = games[game_code]
+    game["active"] = [True]
+    writeGames(games)
 
 @app.post("/action")
 async def select_action(request: Request, session: SessionDep, useData: bool = True):
@@ -424,7 +436,12 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
         print(player_id)
         return {"message": "wrong player"}
     
-    currentCharacter = games [game_code] ["characters"] [games[game_code]["current_turn"][0]]
+    players: List[str] = game["players"]
+    characters: List[str] = game["characters"]
+
+    currentCharacter: Dict = characters[game["current_turn"][0]]
+
+    character: Character = getCharacterFromDict(currentCharacter)
 
     characterKey: str = "enemyCharacters" if not currentCharacter in games[game_code]["playerCharacters"] else "playerCharacters"
     opponentsKey: str = "enemyCharacters" if currentCharacter in games[game_code]["playerCharacters"] else "playerCharacters"
@@ -436,9 +453,6 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
     
     match action:
         case "Attack":
-            if not params["target"]:
-                params["target"] = random.choice([opponentCharacter["name"] for opponentCharacter in opponentCharacters])
-                pass
             
             for char in opponentCharacters:
                 if char["name"] == params["target"]:
