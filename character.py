@@ -144,6 +144,9 @@ class Spell:
     
     
     def spell_to_json(self) -> Dict[str, Any]:
+        """
+        Returns a Dictionary representation of the spell
+        """
         spell = self
 
         spell_dict = {
@@ -247,6 +250,37 @@ element_types: dict[str, dict[str, str]] = {
 
 
 class Character:
+    """
+    Creates a Character object with the following parameters:
+    name: str -> Name of the character
+    character_class: str -> Class of the character
+    team: str in ["player", "enemy"] -> Team of the character (deprecated)
+    element: str -> Element of the character
+    base_stats: dict -> Base stats of the character
+        health: int -> Tracks the current health of the character
+        max_health: int -> Tracks the base maximum health of the character
+        mp: int -> Tracks the current mana of the character
+        max_mp: int -> Tracks the base maximum mana of the character
+        attack_damage: int -> Tracks the base attack damage of the character
+        critical_chance: float -> Base critical hit chance of the character
+        defense: int -> Tracks the base defense of the character
+        magic_defense: int -> Tracks the base magic defense of the character
+        accuracy: int -> Tracks the base accuracy of the character
+        agility: int -> Tracks the base speed of character
+        skill_points: int -> Tracks skill points (abilities)
+        max_skill_points: int -> Max Skill Points (abilities)
+    stat_modifiers: List[StatModifier] -> List of stat modifiers applied to the character.
+    activeEffects: dict -> Active effects on the character (leave empty)
+    effects: List[dict] -> Effects of the character (leave empty)
+    abilities: List[Ability] -> List of abilities of the character.
+    spells: List[Spell] -> List of spells of the character.
+    passives: dict[str, str] -> Passives of the character
+        key: str -> Name of the passive (e.g. "onDeath")
+        value: str -> Name of the function to be called
+    equipment: List[dict] -> List of equipment currently equipped by the character (leave empty)
+    inventory: List[Card] -> List of cards in the character's inventory (leave empty, user-defined)
+    description: str -> Description of the character (optional, recommended)
+    """
     def __init__(self,
                  name: str, 
                  character_class: str, 
@@ -336,6 +370,9 @@ class Character:
         self.apply_active_modifiers()  # Apply active modifiers at the end of each turn
 
     def get_stat(self, stat: str) -> float:
+        """
+        Returns the value of a given stat, including StatModifiers and Equipment
+        """
         base_stat = self.base_stats[stat]
 
         modifiers = self.stat_modifiers
@@ -363,6 +400,13 @@ class Character:
         return final_stat
     
     def attack(self, target: 'Character', element = "neutral") -> Dict[str, Any]:
+        """
+        Attacks a target character with the attack damage of the character.
+        target: Character -> Target character to attack
+        element: str -> Element of the attack (defaults to "neutral")
+
+        This includes Critical Hit Chance, Accuracy, and Elemental Strengths/Weaknesses
+        """
         damage = self.get_stat("attack_damage")
         # damage_type = "neutral"  # Assuming all attacks are neutral for now
         print(f"Debug: {self.name} attacks {target.name} for base {damage} damage!")
@@ -394,6 +438,19 @@ class Character:
                      critical: bool = False,
                      damager: 'Character' = None,
                      damager_username: str = ""):
+        """
+        Damages this current character, with the given parameters:
+        damage: int -> Damage value to be dealt
+        damage_origin: str in ["physical", "magic", "true"] -> Origin of the damage
+            physical -> Physical damage (uses defense, ignores magic defense)
+            magic -> Magical damage (uses magic defense, ignores defense)
+            true -> True damage (ignores both defense and magic defense)
+        damage_type: str -> Element of the damage. See element_types
+        ignore_armor: bool -> Whether the damage ignores armor (sets armor to 2/3 of the original)
+        critical: bool -> Whether the damage is a critical hit (increases damage by 50%)
+        damager: Character -> Character that dealt the damage (optional, needed for character passives)
+        damager_username: str -> Username of the damager (optional, needed for account stats)
+        """
 
         # Determine the defense value based on the damage origin
         defense = 0
@@ -406,8 +463,7 @@ class Character:
                 defense = 0
 
         if self.element == "shadow" and damage_type != "light":
-            
-            print("Shadow Resilience!")
+            # print("Shadow Resilience!")
             defense += 100
 
         # Ignore defense if specified; for full armor ignore use True Damage
@@ -459,6 +515,12 @@ class Character:
             self.stat_modifiers.append(effect)
 
     def use_ability(self, ability: Ability, targets: List['Character'] = None):
+        """
+        Uses an ability from a Character. 
+        Usage: character.use_ability(ability, targets)
+        ability: Ability -> Ability to be used
+        targets: List[Character] -> List of targets for the ability (only if ability.type == "damage" or "debuff")
+        """
         if self.base_stats["skill_points"] >= ability.cost:
             self.base_stats["skill_points"] -= ability.cost
             # Apply the effect of the ability
@@ -502,6 +564,12 @@ class Character:
             print(f"{self.name} does not have enough skill points to use {ability.name}.")
 
     def cast_spell(self, spell: Spell, targets: List['Character'] = None):
+        """
+        Casts a spell from a Character.
+        Usage: character.cast_spell(spell, targets)
+        spell: Spell -> Spell to be cast
+        targets: List[Character] -> List of targets for the spell (only if spell.type == "damage" or "debuff")
+        """
         if self.base_stats["mp"] >= spell.mp_cost:
             self.base_stats["mp"] -= spell.mp_cost
             # Apply the effect of the spell
@@ -533,7 +601,9 @@ class Character:
             print(f"{self.name} does not have enough MP to cast {spell.name}.")
 
     # Display character stats
+    @DeprecationWarning
     def display_character_stats(self):
+        print("-" * 30)
         print(f"Name: {self.name}")
         print(f"Class: {self.character_class}")
         print(f"Health: {self.base_stats['health']}/{self.base_stats['max_health']}")
@@ -550,6 +620,10 @@ class Character:
         print(self.description)
 
     def character_to_json(self) -> dict:
+        """
+        Creates a Dictionary representation of this character
+        Usage: character.character_to_json()
+        """
         character = self
         return {
             "name": character.name,
@@ -641,6 +715,12 @@ class Character:
         }
     
     def get_available_options(self) -> List[Dict]:
+        """
+        Get the available move options for a character.
+        Default Moves: Attack, Forfeit, Skip Turn
+        Spells and Abilities are included as one option each.
+        """
+
         options: List[Dict[str, Any]] = []
 
         attack: Dict[str, Any] = {
@@ -712,8 +792,20 @@ class Character:
         print(options)
         return options
 
-    def get_cards(self) -> List[Dict]:
-        pass
+    def get_cards(self) -> List[Dict[str, Any]]:
+
+        cards = self.inventory
+        cards_json: List[Dict[str, Any]] = []
+        for card in cards:
+            cards_json.append({
+                "name": card.name,
+                "type": card.type,
+                "data": card.data
+            })
+            pass
+        
+        return cards_json
+        
 
 @DeprecationWarning
 class Enemy(Character):
