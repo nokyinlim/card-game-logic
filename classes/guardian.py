@@ -266,6 +266,29 @@ def guardianOnEnemyDeath(character: Character, enemy: Character, killer: Charact
     print(f"{enemy.name} has been defeated by {killer.name}.")
     pass
 
+passives = {
+    "onHit": guardianOnHit,
+    "onMissedHit": guardianOnMissedHit,
+    "onKill": guardianOnKill,
+    "onAbility": guardianOnAbility,
+    "onSpell": guardianOnSpell,
+    "onTakeDamage": guardianOnTakeDamage,
+    "onDeath": guardianOnDeath,
+    "onCritical": guardianOnCritical,
+    "onBattleWon": guardianOnBattleWon,
+    "onBattleLost": guardianOnBattleLost,
+    "onBattleStart": guardianOnBattleStart,
+    "onDodge": guardianOnDodge,
+    "onHeal": guardianOnHeal,
+    "onApplyModifier": guardianOnApplyModifier,
+    "onRemoveModifier": guardianOnRemoveModifier,
+    "onTurnStart": guardianOnTurnStart,
+    "onTurnEnd": guardianOnTurnEnd,
+    "onAllyDeath": guardianOnAllyDeath,
+    "onEnemyDeath": guardianOnEnemyDeath
+}
+
+
 """_defaultGuardian = Character(
     name = "Guardian",
     character_class = "Guardian",

@@ -262,6 +262,7 @@ class Character:
         max_health: int -> Tracks the base maximum health of the character
         mp: int -> Tracks the current mana of the character
         max_mp: int -> Tracks the base maximum mana of the character
+        spell_damage: int -> Tracks the base spell damage of the character
         attack_damage: int -> Tracks the base attack damage of the character
         critical_chance: float -> Base critical hit chance of the character
         defense: int -> Tracks the base defense of the character

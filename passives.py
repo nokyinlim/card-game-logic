@@ -10,10 +10,14 @@ from typing import Dict, Any, List, Optional
 
 # from character import Character
 
-# import guardian
+import guardian
 
+passives = {
+    "guardian": guardian.passives
+}
 
-
+# turns out this was unneeded lol
+@DeprecationWarning
 class CharacterPassive:
     def __init__(self, id: str, params: List[str], function):
         self.id = id

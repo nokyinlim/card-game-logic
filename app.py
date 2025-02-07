@@ -154,6 +154,20 @@ async def generate_code(request: Request, session: SessionDep) -> GameBase:
 
     return db_game
 
+@app.post("/user-stats")
+async def user_stats(request: Request, session: SessionDep):
+    data = await request.json()
+    account_name = data.get('account_name')
+
+    account = session.exec(
+        select(Account).where(Account.username == account_name).with_for_update()
+    ).one()
+
+    # account.stats is a string, so it needs to be converted to a dictionary
+    stats = json.loads(account.stats)
+
+    return stats
+
 @app.post("/get-account")
 async def get_account(request: Request, session: SessionDep):
     data = await request.json()
