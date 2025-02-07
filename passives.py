@@ -1,9 +1,18 @@
+"""
+This file contains logic for activating, storing and using Character Passives.
+The variable passives: Dict[character: str, passives: Dict[passive: str, CharacterPassive]]
+
+To obtain the passive for one character, you should use the use_passive() function within CharacterPassive. 
+However, you may also run passives directly by running CharacterPassive.function
+"""
 
 from typing import Dict, Any, List, Optional
 
 # from character import Character
 
 # import guardian
+
+
 
 class CharacterPassive:
     def __init__(self, id: str, params: List[str], function):
