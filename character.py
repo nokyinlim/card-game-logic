@@ -275,9 +275,7 @@ class Character:
     effects: List[dict] -> Effects of the character (leave empty)
     abilities: List[Ability] -> List of abilities of the character.
     spells: List[Spell] -> List of spells of the character.
-    passives: dict[str, str] -> Passives of the character
-        key: str -> Name of the passive (e.g. "onDeath")
-        value: str -> Name of the function to be called
+    passives: str -> Key of the Passive constant (from passives.py)
     equipment: List[dict] -> List of equipment currently equipped by the character (leave empty)
     inventory: List[Card] -> List of cards in the character's inventory (leave empty, user-defined)
     description: str -> Description of the character (optional, recommended)
@@ -293,7 +291,7 @@ class Character:
                  effects: List[dict],
                  abilities: List[Ability],
                  spells: List[Spell],
-                 passives: dict,
+                 passives: str,
                  equipment: List[dict],
                  inventory: List[Card],
                  description: str = ""): # Inventory == cards

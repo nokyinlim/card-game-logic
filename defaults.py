@@ -3,14 +3,6 @@ import random
 from typing import Dict, List
 # from character import Character
 
-# class Character:
-#     def __init__(self, name, weight):
-#         self.name = name
-#         self.weight = weight
-#         pass
-
-#     def get_stat(self, stat):
-#         return self.weight
 
 def generate_random_character(characters):
     # Extract weights and characters
@@ -21,7 +13,7 @@ def generate_random_character(characters):
     return selected_character
 
 
-def calculate_effective_damage(damage, defense):
+def calculate_effective_damage(damage, defense) -> float:
     # Calculate the damage reduction percentage
     damage_reduction_percentage = defense / (defense + 50)
     
@@ -30,17 +22,17 @@ def calculate_effective_damage(damage, defense):
     
     return effective_damage
 
-def remove_dict_with_key_value(dict_list, key, value):
+def remove_dict_with_key_value(dict_list, key, value) -> Dict:
     # Use list comprehension to filter out the dictionary with the specific key-value pair
     return [d for d in dict_list if d.get(key) != value]
 
 
-def remove_instance_with_property(instance_list, property_name, value):
+def remove_instance_with_property(instance_list, property_name, value) -> Dict:
     # Use list comprehension to filter out the instance with the specific property value
     return [instance for instance in instance_list if getattr(instance, property_name) != value]
 
 
-def chance_to_be_true(percentage):
+def chance_to_be_true(percentage) -> bool:
     if not (0 <= percentage <= 100):
         raise ValueError("Percentage must be between 0 and 100.")
     
