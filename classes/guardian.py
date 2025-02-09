@@ -1,5 +1,5 @@
 from typing import List
-from character import StatModifier, Character, Ability, Spell, Equipment
+from character import StatModifier, Character, Ability, Spell
 import defaults
 # from shared_game_data import characters, playerCharacters
 import shared_game_data 
@@ -266,6 +266,15 @@ def guardianOnEnemyDeath(character: Character, enemy: Character, killer: Charact
     print(f"{enemy.name} has been defeated by {killer.name}.")
     pass
 
+def beforeDamage(damage_amount: float, character: Character, target: Character) -> float:
+    return damage_amount
+
+def beforeHeal(heal_amount: float, character: Character, target: Character) -> float:
+    return heal_amount
+
+def beforeAttack(damage_amount: float, character: Character, target: Character, type: str, element: str, critical: bool, ignore_armor: bool) -> float:
+    return damage_amount
+
 passives = {
     "onHit": guardianOnHit,
     "onMissedHit": guardianOnMissedHit,
@@ -285,7 +294,10 @@ passives = {
     "onTurnStart": guardianOnTurnStart,
     "onTurnEnd": guardianOnTurnEnd,
     "onAllyDeath": guardianOnAllyDeath,
-    "onEnemyDeath": guardianOnEnemyDeath
+    "onEnemyDeath": guardianOnEnemyDeath,
+    "beforeDamage": beforeDamage,
+    "beforeHeal": beforeHeal,
+    "beforeAttack": beforeAttack
 }
 
 

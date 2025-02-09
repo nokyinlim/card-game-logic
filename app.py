@@ -13,7 +13,7 @@ from datetime import datetime
 from database import Account, AccountBase, AccountCreate, AccountRead, AccountUpdate, get_session
 
 from character import Character, StatModifier, Ability, Spell
-from game_loop_test_1 import action_attack
+# from game_loop_test_1 import action_attack
 from websocket import ConnectionManager
 
 from utils import *
@@ -113,6 +113,7 @@ async def generate_code(request: Request, session: SessionDep) -> GameBase:
 
     player_id = data.get('player_id')
     characterID = data.get('character_id')
+    username = data.get('username', '')
     
     character: Character = getDefaultCharacterFromStr(characterID, True)
     
@@ -129,12 +130,14 @@ async def generate_code(request: Request, session: SessionDep) -> GameBase:
     games = readGames()
 
     games[current_code] = {
-        "characters": [character.character_to_json()],
+        "characters": [character.character_to_json(new_team="0")],
         "playerCharacters": [player_id],
         "enemyCharacters": [],
         "current_turn": [0],
         "players": [player_id],
-        "player_count": 1
+        "player_count": 1,
+        "usernames": [username],
+        "next_team": "1"
         # "locked_players": []
         # "active_player": [player_id]
     }
@@ -223,11 +226,7 @@ async def create_account(request: Request, session: SessionDep):
     session.refresh(db_account)
 
     return {"title": "Account Created Successfully", "message": "Your games, stats and scores are now being saved."}
-
-
-
-
-    
+ 
 
 @app.post("/join")
 # def join_game(jg: JoinGame, character: PydanticCharacter, session: SessionDep):
@@ -237,7 +236,8 @@ async def join_game(request: Request, session: SessionDep) -> dict:
     gameCode = data.get('game_code')
     playerID = data.get('player_id')
     character_team = data.get('character_team', 'enemyCharacters')
-    
+    username = data.get('username', '')
+
     character: Character = getDefaultCharacterFromStr(characterID, True)
     jg = JoinGame(
         game_code=gameCode,
@@ -255,10 +255,12 @@ async def join_game(request: Request, session: SessionDep) -> dict:
         raise HTTPException(status_code=404, detail="Game Not Found")
 
     games = readGames()
-    games[jg.game_code]["characters"].append(character.character_to_json())
+    games[jg.game_code]["characters"].append(character.character_to_json(new_team=games[jg.game_code]["next_team"]))
     games[jg.game_code][character_team].append(jg.player_id)
     games[jg.game_code]["players"].append(jg.player_id)
     games[jg.game_code]["player_count"] += 1
+    games[jg.game_code]["usernames"].append(username)
+    games[jg.game_code]["next_team"] = "0" if games[jg.game_code]["next_team"] == "1" else "1"
     # games[jg.game_code]["locked_players"].append(jg.player_id)
 
     writeGames(games)
@@ -364,12 +366,12 @@ async def select_action(request: Request, session: SessionDep, useData: bool = T
             # action_attack(currentCharacter, target_name=params["target"])
             print('attack')
 
-            res = action_attack(currentCharacter["name"], game_code, params["target"], opponentsKey, characterKey)
-            turnEnded = res
-            if turnEnded:
-                games = readGames()
-                games[game_code]["current_turn"][0] = (games[game_code]["current_turn"][0] + 1) % 2
-                writeGames(games)
+            # res = action_attack(currentCharacter["name"], game_code, params["target"], opponentsKey, characterKey)
+            # turnEnded = res
+            # if turnEnded:
+            #     games = readGames()
+            #     games[game_code]["current_turn"][0] = (games[game_code]["current_turn"][0] + 1) % 2
+            #     writeGames(games)
 
             
             pass
@@ -381,7 +383,7 @@ async def select_action(request: Request, session: SessionDep, useData: bool = T
 async def get_all_characters():
 
     with open("characters.json", "r") as f:
-        characters = json.load(f)
+        characters: Dict = json.load(f)
 
     return list(characters.keys())
 
@@ -400,7 +402,7 @@ async def get_cards(request: Request, session: SessionDep):
     
 
     char_index = 0 if game["players"][0] == character_id else 1
-    character = getCharacterFromDict(game["characters"][char_index])
+    character = dictionary_to_character(game["characters"][char_index])
     
     return character.get_cards()
 
@@ -417,7 +419,8 @@ async def turn_options(request: Request, session: SessionDep):
 
     games = readGames()
 
-    game = games[game_code]
+    try: game = games[game_code]
+    except: return {"message": "Invalid Game Code", "error": True}
 
     active_player = game["players"][game["current_turn"][0]]
 
@@ -430,7 +433,7 @@ async def turn_options(request: Request, session: SessionDep):
 
         current_character = game["characters"][current_turn]
 
-        character = getCharacterFromDict(current_character)
+        character = dictionary_to_character(current_character)
 
         turn_options = character.get_available_options()
 
@@ -438,7 +441,9 @@ async def turn_options(request: Request, session: SessionDep):
 
     return []
 
-def run_action(action: str, player_id: str, game_code: str, params: Dict[str, str]) -> Dict[str, str]:
+def run_action(action: str, player_id: str, game_code: str, params: Dict[str, str], action_type: str) -> Dict[str, str]:
+
+    messages = []
 
     games = readGames()
 
@@ -451,15 +456,11 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
         return {"message": "wrong player"}
     
     players: List[str] = game["players"]
-    characters: List[str] = game["characters"]
+    characters: List[Character] = [dictionary_to_character(character) for character in game["characters"]]
 
-    currentCharacter: Dict = characters[game["current_turn"][0]]
+    currentCharacter: Character = characters[game["current_turn"][0]]
 
-    character: Character = getCharacterFromDict(currentCharacter)
-
-    characterKey: str = "enemyCharacters" if not currentCharacter in games[game_code]["playerCharacters"] else "playerCharacters"
-    opponentsKey: str = "enemyCharacters" if currentCharacter in games[game_code]["playerCharacters"] else "playerCharacters"
-    opponentCharacters: List[Character] = games[game_code][opponentsKey]
+    character: Character = currentCharacter
 
     print("current character\n", currentCharacter)
 
@@ -467,30 +468,140 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
     
     match action:
         case "Attack":
-            
-            for char in opponentCharacters:
-                if char["name"] == params["target"]:
-                    target = char
-                    break
 
             # action_attack(currentCharacter, target_name=params["target"])
-            print('attack')
+            # print('attack')
 
-            res = action_attack(currentCharacter["name"], game_code, params["target"], opponentsKey, characterKey)
-            turnEnded = res
-            if turnEnded:
-                games = readGames()
-                games[game_code]["current_turn"][0] = (games[game_code]["current_turn"][0] + 1) % 2
-                writeGames(games)
-
+            all_characters = characters
+            all_players = players
             
+            target = None
+
+            print("Attempting to find the target:", params["target"])
+
+            for i, char in enumerate(all_players):
+                if char == params["target"]:
+                    target: Character = all_characters[i]
+                    targetIndex = i
+                    break
+            
+            
+            if not target or not targetIndex:
+                messages.append("Invalid Target. Please try reselecting the target and try again.")
+
+                return {"messages": messages, "error": True}
+            
+            res = character.attack(target, "neutral", "", "", False, "physical")
+
+            character = res["self"]
+            target = res["target"]
+
+            # update games
+
+            games[game_code]["characters"][game["current_turn"][0]] = character.character_to_json()
+            games[game_code]["characters"][targetIndex] = target.character_to_json()
+            games[game_code]["current_turn"][0] += 1
+
+            writeGames(games)
+
             pass
         
         case "Skip Turn":
 
             print(f"{player_id} has skipped their turn.")
+            games[game_code]["current_turn"][0] += 1
+            writeGames(games)
             pass
     
+        case "Forfeit":
+            print(f"{player_id} has forfeited the game.")
+            
+            pass
+
+        case _:
+            # This means it is either a Spell or an Ability
+
+            print(f"Action: {action}")
+
+            character_actions = character.get_available_options(keep_class=True)
+
+            actionFound = False
+            for char_action in character_actions:
+                if char_action["name"] == action:
+                    print("Action Found")
+                    actionFound = True
+                    # This is either a Spell or Ability action in JSON format
+                    this_action = char_action
+                    action_data: Spell | Ability = char_action["info"]
+                    break
+            
+            if not actionFound:
+                return {"message": "Invalid Action", "error": True}
+            
+            print(action_data)
+
+            if this_action["type"] == "spell":
+                # it is a spell
+                spell_requires_targets = action_data.type in ["damage", "debuff"]
+
+                spell_targets: List[Character] = []
+                character.cast_spell(
+                    spell=action_data,
+                    targets=spell_targets if spell_requires_targets else []
+                )
+                pass
+            elif this_action["type"] == "ability":
+                # it is an ability
+                ability_requires_targets = action_data.type in ["damage", "debuff"]
+
+                ability_targets: List[Character] = []
+
+                if ability_requires_targets:
+                    specified_targets: str = action_data.damage.get("targets", "enemies")
+
+                    if specified_targets == "enemies":
+                        ability_targets = [char for char in characters if char.team != character.team]
+                        pass
+                    elif specified_targets == "allies":
+                        ability_targets = [char for char in characters if char.team == character.team]
+                        pass
+                    elif specified_targets == "self":
+                        ability_targets = character
+                        pass
+                    elif specified_targets == "all":
+                        ability_targets = characters
+                        pass
+                    else:
+                        # it is a specific target
+                        for i, char in enumerate(players):
+                            if char == specified_targets:
+                                ability_targets.append(characters[i])
+                                break
+
+                res = character.use_ability(
+                    ability=action_data,
+                    targets=ability_targets if (ability_requires_targets) else None
+                )
+
+                character = res["self"]
+                targets = res["targets"]
+
+                # Update the character in the games dictionary
+                character_index = games[game_code]["current_turn"][0]
+                games[game_code]["characters"][character_index] = character.character_to_json()
+
+                # Update each target character in the games dictionary
+                for target in targets:
+                    for i, game_char in enumerate(games[game_code]["characters"]):
+                        if game_char["name"] == target.name:
+                            games[game_code]["characters"][i] = target.character_to_json()
+
+                # Move to next turn?
+                games[game_code]["current_turn"][0] += 1
+
+                writeGames(games)
+                pass
+            pass
 
     return {"message": "correct player"}
 
@@ -498,7 +609,7 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
 @app.websocket("/game-ws")
 async def game_websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
-    print("message")
+    print("message received")
     try:
         while True:
             data = await websocket.receive_text()
@@ -506,21 +617,26 @@ async def game_websocket_endpoint(websocket: WebSocket):
 
             data_json: dict = json.loads(data)
 
-            print(f"action: {data_json["action"]}")
+            print(f"action: {data_json["name"]}")
             print(f"params: {data_json["params"]}")
             print(f"game code: {data_json["game_code"]}")
+            print(f"player id: {data_json["player_id"]}")
+            print(f"type: {data_json["type"]}")
             
 
             ret_msg: Dict[str, str] = run_action(
-                action=data_json["action"],
+                action=data_json["name"],
                 player_id=data_json["player_id"],
                 game_code=data_json["game_code"],
-                params=data_json["params"]
+                params=data_json["params"],
+                action_type=data_json["type"]
             )
 
             print(ret_msg)
 
-            await websocket.send_text(ret_msg["message"])
+            await websocket.send_text(json.dumps(ret_msg))
+
+
             # match data_json["action"]:
             #     case "Attack":
                     

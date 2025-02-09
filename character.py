@@ -11,6 +11,8 @@ import defaults
 from pydantic import BaseModel, Field
 
 
+from account import update_account_stat
+from passives import get_before_passive_function, get_passive_function
 
 
 
@@ -20,10 +22,18 @@ class StatModifier:
     id: str -> Identifier of the modifier
     stat: str -> ID of the stat
     value: float -> Value modifier of the stat
-    modifier_type: str in ["add", "multiply_base", "multiplicative"]
+    modifier_type: str in ["add", "multiply_base", "multiplicative", "turn", "status"]
         add: Directly adds the value (flat, additive)
         multiply_base: Multiplies by the base value (e.g. 0.2 is 20% increase)
         multiplicative: Multiplies the final value (including other multiplicative stat modifiers, where 1.2 is 20% increase)
+        turn: Applies the modifier each turn (does not revert after)
+        status: Changes how the StatModifier will be processed (e.g. "poison", "burn")
+            stat: str now represents the status effect
+            value: float now represents the chance of the status effect. Negative value means chance to remove. 
+            modifier_type: "status"
+            duration: int -> Duration of the status effect
+            targetsSelf: bool -> Whether the status effect targets self or the target (if specified; defaults always to Self)
+            displayName: str -> Display name of the status effect (for UI only)
     duration: int -> Duration of the modifier in turns
     targetsSelf: bool -> Whether the modifier targets self or the target (if specified; defaults always to Self)
     applyer: Character -> Character that applied the modifier (unused for now)
@@ -253,42 +263,46 @@ element_types: dict[str, dict[str, str]] = {
 class Character:
     """
     Creates a Character object with the following parameters:
-    name: str -> Name of the character
-    character_class: str -> Class of the character
-    team: str in ["player", "enemy"] -> Team of the character (deprecated)
-    element: str -> Element of the character
-    base_stats: dict -> Base stats of the character
-        health: int -> Tracks the current health of the character
-        max_health: int -> Tracks the base maximum health of the character
-        mp: int -> Tracks the current mana of the character
-        max_mp: int -> Tracks the base maximum mana of the character
-        spell_damage: int -> Tracks the base spell damage of the character
-        attack_damage: int -> Tracks the base attack damage of the character
-        critical_chance: float -> Base critical hit chance of the character
-        defense: int -> Tracks the base defense of the character
-        magic_defense: int -> Tracks the base magic defense of the character
-        accuracy: int -> Tracks the base accuracy of the character
-        agility: int -> Tracks the base speed of character
-        skill_points: int -> Tracks skill points (abilities)
-        max_skill_points: int -> Max Skill Points (abilities)
-    stat_modifiers: List[StatModifier] -> List of stat modifiers applied to the character.
-    activeEffects: dict -> Active effects on the character (leave empty)
-    effects: List[dict] -> Effects of the character (leave empty)
-    abilities: List[Ability] -> List of abilities of the character.
-    spells: List[Spell] -> List of spells of the character.
-    passives: str -> Key of the Passive constant (from passives.py)
-    equipment: List[dict] -> List of equipment currently equipped by the character (leave empty)
-    inventory: List[Card] -> List of cards in the character's inventory (leave empty, user-defined)
-    description: str -> Description of the character (optional, recommended)
+    ### Parameters
+    - name (str): Name of the character
+    - character_class (str): Class of the character
+    - team (str): Team of the character (deprecated)
+    - element (str): Element of the character
+    - base_stats (dict): Base stats of the character
+        - health (int): Tracks the current health of the character
+        - max_health (int): Tracks the base maximum health of the character
+        - mp (int): Tracks the current mana of the character
+        - max_mp (int): Tracks the base maximum mana of the character
+        - spell_damage (int): Tracks the base spell damage of the character
+        - attack_damage (int): Tracks the base attack damage of the character
+        - critical_chance (float): Base critical hit chance of the character
+        - defense (int): Tracks the base defense of the character
+        - magic_defense (int): Tracks the base magic defense of the character
+        - accuracy (int): Tracks the base accuracy of the character
+        - agility (int): Tracks the base speed of the character
+        - skill_points (int): Tracks skill points (abilities)
+        - max_skill_points (int): Max Skill Points (abilities)
+    - character_data (Dict[str, Any]): Character data (leave empty); defined as needed to store char-specific data
+    - stat_modifiers (List[StatModifier]): List of stat modifiers applied to the character
+    - activeEffects (dict): Active effects on the character (leave empty)
+    - effects (List[dict]): Effects of the character (leave empty)
+    - abilities (List[Ability]): List of abilities of the character
+    - spells (List[Spell]): List of spells of the character
+    - passives (str): Key of the Passive constant (from passives.py)
+    - equipment (List[dict]): List of equipment currently equipped by the character (leave empty)
+    - inventory (List[Card]): List of cards in the character's inventory (leave empty, user-defined)
+    - description (str): Description of the character (optional, recommended)
     """
+
     def __init__(self,
                  name: str, 
                  character_class: str, 
                  team: str,
                  element: str,
                  base_stats: dict,
+                 character_data: Dict[str, Any],
                  stat_modifiers: List[StatModifier],
-                 activeEffects: dict[str, any],
+                 activeEffects: List[StatModifier],
                  effects: List[dict],
                  abilities: List[Ability],
                  spells: List[Spell],
@@ -301,6 +315,7 @@ class Character:
         self.team = team
         self.element = element
         self.base_stats = base_stats
+        self.character_data = character_data
         self.stat_modifiers = stat_modifiers
         self.activeEffects = activeEffects
         self.effects = effects
@@ -365,13 +380,31 @@ class Character:
             except:
                 print("Could not find any equipment Stat Modifiers")
 
+    def apply_status_effects(self):
+        effects = self.activeEffects
+        for effect in effects:
+            if effect.duration is None:
+                continue
+
+            effect.duration -= 1
+            if effect.duration > 0:
+                continue
+
+            self.activeEffects.remove(effect)
+            print(f"{self.name} no longer has {effect.displayName}")
+
+            # Run passive
+            passive = get_passive_function(self.passives, "onRemoveModifier")
+            if passive: passive(self, effect)
+
     def end_turn(self):
         self.turns += 1
         self.apply_active_modifiers()  # Apply active modifiers at the end of each turn
+        self.apply_status_effects()
 
     def get_stat(self, stat: str) -> float:
         """
-        Returns the value of a given stat, including StatModifiers and Equipment
+        Returns the value of a given stat, including StatModifiers and Equipment.
         """
         base_stat = self.base_stats[stat]
 
@@ -385,7 +418,7 @@ class Character:
             if modifier.stat != stat:
                 continue
 
-            if modifier.modifier_type == "turn":
+            if modifier.modifier_type in ["turn", "status"]:
                 continue
                 
             match modifier.modifier_type:
@@ -399,13 +432,23 @@ class Character:
         final_stat: float = ((base_stat * multBaseModifiers) + addModifiers) * multAllModifiers
         return final_stat
     
-    def attack(self, target: 'Character', element = "neutral") -> Dict[str, Any]:
+    def attack(self, target: 'Character', element = "neutral", attacker_username: str = "", target_username: str = "", guarantee_hit: bool = False, damage_origin: str = "physical") -> Dict[str, Any]:
         """
         Attacks a target character with the attack damage of the character.
         target: Character -> Target character to attack
         element: str -> Element of the attack (defaults to "neutral")
 
         This includes Critical Hit Chance, Accuracy, and Elemental Strengths/Weaknesses
+
+        :return: Dict[str, Any] -> Dictionary containing the results of the attack
+        didHit: bool -> Whether the attack hit the target
+        self: Character -> The attacking character
+        target: Character -> The target character
+        damage: int -> Damage dealt to the target
+        critical: bool -> Whether the attack was a critical hit
+        element: str -> Element of the attack
+        damage_type: str -> Origin of the damage (physical, magic, true)
+        message: str -> Message output of the attack
         """
         damage = self.get_stat("attack_damage")
         # damage_type = "neutral"  # Assuming all attacks are neutral for now
@@ -417,18 +460,67 @@ class Character:
 
         bonusAccuracy = self.get_stat("accuracy") - target.get_stat('agility')
         totalAccuracy = (0.7 + bonusAccuracy) / 100
-        didHit = totalAccuracy > random()
+        didHit = (totalAccuracy > random() or guarantee_hit)
+
+        ignore_armor: bool = False
+
+        try: 
+            damage = get_before_passive_function(damage_amount=final_damage, char=self, target=target, type=damage_origin, element=element, ignore_armor=ignore_armor, critical=critical, didHit=didHit)
+            final_damage = damage["damage"]
+            didHit = damage["didHit"]
+            critical = damage["critical"]
+            ignore_armor = damage["ignore_armor"]
+            # others added here
+        except: final_damage = damage
+
         if didHit:
             # Call the target's damage_character method to apply damage
-            target.damage_character(damage, damage_origin="physical", damage_type=element, ignore_armor=False, critical=critical)
+            message = target.damage_character(final_damage, damage_origin=damage_origin, damage_type=element, ignore_armor=ignore_armor, critical=critical, damager_username=attacker_username, defender_username=target_username, damager=self)
+            passive = get_passive_function(self.passives, "onHit")
+            if passive: passive(self, target, final_damage, damage_origin, element, critical, ignore_armor=ignore_armor)
         else:
             print(f"{self.name} missed the {target.name}!")
+            message = f"{self.name} missed the {target.name}!"
+            passive = get_passive_function(self.passives, "onMissedHit")
+            if passive: passive(self, target)
 
         if critical:
-            try: self.passives["onCritical"](self, target, didHit)
-            except: pass
+            print(f"{self.name} lands a critical hit on {target.name}!")
+            passive = get_passive_function(self.passives, "onCritical")
+            if passive: passive(self, target, didHit)
         
-        return {"didHit": didHit, "self": self, "target": target}
+
+
+        # for later implementation
+        if False and attacker_username:
+            if didHit:
+                update_account_stat(attacker_username, "success_attack")
+
+                update_account_stat(attacker_username, "deal_damage", final_damage, "add")
+
+                stat_to_update: str = f"deal_damage_{element}"
+                update_account_stat(attacker_username, stat_to_update, final_damage, "add")
+
+                stat_to_update: str = "deal_damage_physical"
+                update_account_stat(attacker_username, stat_to_update, final_damage, "add")
+            else:
+                update_account_stat(attacker_username, "miss_attack")
+
+            if critical:
+                update_account_stat(attacker_username, "critical_attack")
+            
+
+            pass
+        
+        return {"didHit": didHit, 
+                "self": self, 
+                "target": target, 
+                "damage": final_damage, 
+                "critical": critical, 
+                "element": element, 
+                "damage_type": damage_origin,
+                "message": message
+                }
 
     def damage_character(self, 
                      damage: int, 
@@ -437,7 +529,8 @@ class Character:
                      ignore_armor: bool = False,
                      critical: bool = False,
                      damager: 'Character' = None,
-                     damager_username: str = ""):
+                     damager_username: str = "",
+                     defender_username: str = "") -> str:
         """
         Damages this current character, with the given parameters:
         damage: int -> Damage value to be dealt
@@ -468,7 +561,10 @@ class Character:
 
         # Ignore defense if specified; for full armor ignore use True Damage
         if ignore_armor:
+            armor_points_ignored = defense * 1/3
+            update_account_stat(damager_username, "armor_points_ignored", armor_points_ignored, "add")
             defense *= 2/3
+            
 
         # Apply critical hit modifier
         if critical:
@@ -477,7 +573,7 @@ class Character:
         # Calculate effective damage
         effective_damage = defaults.calculate_effective_damage(damage, defense)
         effective_damage = max(1, effective_damage)  # Ensure damage is not negative
-
+        
 
         # print(f"Attacker uses {damage_type}; attack stong against: {element_types[damage_type]["strength"]} == enemy: {self.element};weak against {element_types[self.element]["weakness"]}")
         if element_types[damage_type]["strength"] == self.element:
@@ -489,28 +585,52 @@ class Character:
 
         # Subtract effective damage from health
         self.base_stats["health"] -= effective_damage
-        self.base_stats["health"] = max(0, self.base_stats["health"])  # Ensure health doesn't drop below 0
 
-        if self.base_stats["health"] == 0:
+        # health can now drop below 0
+        # self.base_stats["health"] = max(0, self.base_stats["health"])  # Ensure health doesn't drop below 0
+
+        if self.base_stats["health"] <= 0:
             print("Character has Died!")
-            try:
-                self.passives["onDeath"](self, damager, damage_origin, damage_type)
-            except:
-                pass
+            if damager and self.passives:
+                passive_name = self.passives
+                # this part uses the get_passive_function() from passives.py
+                # this is necessary to avoid a cicular import
+                
+                # Get and execute the onDeath passive if it exists, so try statement not necessary
+                on_death_func = get_passive_function(passive_name, "onDeath")
+                if on_death_func:
+                    on_death_func(self, damager)
         else:
-            try:
-                self.passives["onTakeDamage"](self, damager, damage_origin, damage_type, damage, critical, ignore_armor)
-            except:
-                pass
+            # onDamage function
+
+            if damager and self.passives:
+                passive_name = self.passives
+                # this part uses the get_passive_function() from passives.py
+                # this is necessary to avoid a cicular import
+                    
+
+                on_damage_func = get_passive_function(passive_name, "onTakeDamage")
+                if on_damage_func:
+                    try: 
+                        on_damage_func(self, damager, damage_origin, damage_type, effective_damage, critical, ignore_armor)
+                    except:
+                        print("Error in onDamage function: Not Implemented")
             pass
 
         # Output the damage dealt
-        print(f"{self.name} takes {effective_damage} {damage_type} damage!")
+        print(f"{damager.name} attacks {self.name} for {effective_damage} {damage_type} damage!")
+
+        return f"{damager.name} attacks {self.name} for {effective_damage} {damage_type} damage!"
 
     def apply_stat_modifier(self, effect: StatModifier):
         print(f"Applied effect: {effect.stat} {effect.value} ({effect.modifier_type})")
+
+        passive = get_passive_function(self.passives, "onApplyModifier")
+        if passive: passive(self, StatModifier)
         if effect.modifier_type == "turn":
             self.active_modifiers.append(effect)
+        elif effect.modifier_type == "status":
+            self.activeEffects[effect.stat] = effect
         else: 
             self.stat_modifiers.append(effect)
 
@@ -562,6 +682,11 @@ class Character:
                     print("Debuff Ability!")
         else:
             print(f"{self.name} does not have enough skill points to use {ability.name}.")
+        
+        return {
+            "self": self,
+            "targets": targets
+        }
 
     def cast_spell(self, spell: Spell, targets: List['Character'] = None):
         """
@@ -584,7 +709,11 @@ class Character:
                             self.stat_modifiers.append(effect)
                 case "damage":
                     print(f"{self.name} used ability: {spell.name}!")
-                    damage = spell.damage["damage"] + self.get_stat("spell_damage")
+                    damage = spell.damage["damage"]
+                    if damage > 0:
+                        damage += self.get_stat("spell_damage")
+                    elif damage < 0:
+                        damage -= self.get_stat("spell_damage")
                     for target in targets:
                         if target:
                             target.damage_character(damage, "magic", spell.damage["element"])
@@ -598,8 +727,24 @@ class Character:
                                 self.stat_modifiers.append(effect)
                 case "debuff":
                     print("Debuff Ability!")
+                case "cure":
+                    print("Cure Ability!")
+
+                    if spell.effects:
+                        for effect in spell.effects:
+                            print(f"Status To Cure: {effect.stat}")
+                            if effect.stat in target.activeEffects:
+                                target.activeEffects.remove(effect.stat)
+                                print(f"Removed {effect.stat} from {target.name}")
+                            
+
         else:
             print(f"{self.name} does not have enough MP to cast {spell.name}.")
+        
+        return {
+            "self": self,
+            "targets": targets
+        }
 
     # Display character stats
     @DeprecationWarning
@@ -620,7 +765,7 @@ class Character:
         print(self.name)
         print(self.description)
 
-    def character_to_json(self) -> dict:
+    def character_to_json(self, new_team = "") -> dict:
         """
         Creates a Dictionary representation of this character
         Usage: character.character_to_json()
@@ -632,6 +777,7 @@ class Character:
             "team": character.team,
             "element": character.element,
             "base_stats": character.base_stats,
+            "character_data": character.character_data,
             "stat_modifiers": [
                 {
                     "id": mod.id,
@@ -644,7 +790,16 @@ class Character:
                     "displayName": mod.displayName
                 } for mod in character.stat_modifiers
             ],
-            "activeEffects": character.activeEffects,
+            "activeEffects": [{
+                "id": effect.id,
+                "stat": effect.stat,
+                "value": effect.value,
+                "modifier_type": effect.modifier_type,
+                "duration": effect.duration,
+                "targetsSelf": effect.targetsSelf,
+                "applyer": effect.applyer,
+                "displayName": effect.displayName
+            } for effect in character.activeEffects],
             "effects": character.effects,
             "abilities": [
                 {
@@ -715,7 +870,7 @@ class Character:
             "description": character.description
         }
     
-    def get_available_options(self) -> List[Dict]:
+    def get_available_options(self, keep_class: bool = False) -> List[Dict]:
         """
         Get the available move options for a character.
         Default Moves: Attack, Forfeit, Skip Turn
@@ -764,7 +919,7 @@ class Character:
                 "type": "spell",
                 "name": spell.name,
                 "params": params,
-                "info": spell.spell_to_json()
+                "info": spell if keep_class else spell.spell_to_json()
             }
 
             options.append(spell_item)
@@ -785,7 +940,7 @@ class Character:
                 "type": "ability",
                 "name": ability.name,
                 "params": params,
-                "info": ability.ability_to_json()
+                "info": ability if keep_class else ability.ability_to_json()
             }
 
             options.append(ability_item)
@@ -813,5 +968,4 @@ class Enemy(Character):
     def __init__(self, name, character_class, team, element, base_stats, stat_modifiers, activeEffects, effects, abilities, spells, passives, equipment, inventory, description = ""):
         super().__init__(name, character_class, team, element, base_stats, stat_modifiers, activeEffects, effects, abilities, spells, passives, equipment, inventory, description)
     pass
-
 

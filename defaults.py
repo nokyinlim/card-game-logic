@@ -73,5 +73,7 @@ default_user_stats: Dict = {
     "skill_points_used": 0,
     "spell_points_used": 0,
     "turn_skip": 0,
-    "damage_record": 0
+    "damage_record": 0,
+    "death_count": 0,
+    "kill_count": 0
 }
