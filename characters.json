@@ -19,6 +19,7 @@
             "accuracy": 60,
             "agility": 10
         },
+        "character_data": {},
         "stat_modifiers": [],
         "activeEffects": [],
         "effects": [
@@ -103,6 +104,7 @@
             "accuracy": 30,
             "agility": 15
         },
+        "character_data": {},
         "stat_modifiers": [],
         "activeEffects": [],
         "effects": [
@@ -226,6 +228,7 @@
             "accuracy": 100,
             "agility": 30
         },
+        "character_data": {},
         "stat_modifiers": [],
         "activeEffects": [],
         "effects": [],
@@ -258,6 +261,7 @@
             "accuracy": 40,
             "agility": 10
         },
+        "character_data": {},
         "stat_modifiers": [],
         "activeEffects": [],
         "effects": [],

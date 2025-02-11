@@ -1,14 +1,9 @@
 
 import json
-from typing import List, Dict, Any, Optional
-
-from functools import reduce
-from operator import mul
+from typing import List, Dict, Any, Callable
 
 from random import random
 import defaults
-
-from pydantic import BaseModel, Field
 
 
 from account import update_account_stat
@@ -963,9 +958,26 @@ class Character:
         return cards_json
         
 
-@DeprecationWarning
+# The old Enemy class is now fully removed and replaced by a new version.
+
 class Enemy(Character):
-    def __init__(self, name, character_class, team, element, base_stats, stat_modifiers, activeEffects, effects, abilities, spells, passives, equipment, inventory, description = ""):
-        super().__init__(name, character_class, team, element, base_stats, stat_modifiers, activeEffects, effects, abilities, spells, passives, equipment, inventory, description)
+    def __init__(self, name, character_class, team, element, base_stats, character_data, stat_modifiers, activeEffects, effects, abilities, spells, passives, equipment, inventory, logic: Callable[['Enemy', List['Enemy'], List[Character]], Dict[str, Any]]):
+        super().__init__(name, character_class, team, element, base_stats, character_data, stat_modifiers, activeEffects, effects, abilities, spells, passives, equipment, inventory, "")
+        self.logic = logic
+    
+    def define_action(self, allies: List['Enemy'], enemies: List[Character], run_action = False) -> Dict[str, Any]:
+        """
+        Defines the action of the enemy character.
+        Uses the self.logic function to determine the action.
+
+        use run_action=True to run the action immediately
+        """
+
+
+
+        return self.logic(self, allies, enemies)
+
     pass
+
+
 

@@ -23,6 +23,7 @@ electric_mage: Character = Character(
         "accuracy": 40,
         "agility": 15
     },
+    character_data={},
     stat_modifiers=[],
     activeEffects=[],
     effects=[],

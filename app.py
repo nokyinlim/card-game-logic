@@ -453,7 +453,16 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
         print(games[game_code]["current_turn"][0])
         print(games[game_code]["players"][games[game_code]["current_turn"][0]])
         print(player_id)
-        return {"message": "wrong player"}
+        return {
+            "type": "error", 
+            "message": "You are not the current player!", 
+            "error": True, 
+            "current_turn": game["current_turn"][0],
+            "characters": game["characters"],
+            "players": game["players"],
+            "player_id": player_id,
+            "game_code": game_code
+        }
     
     players: List[str] = game["players"]
     characters: List[Character] = [dictionary_to_character(character) for character in game["characters"]]
@@ -464,7 +473,9 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
 
     print("current character\n", currentCharacter)
 
-    print("palyer id\n" + player_id)
+    print("palyer id is '" + player_id)
+
+    print("Players are:", players)
     
     match action:
         case "Attack":
@@ -476,17 +487,21 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
             all_players = players
             
             target = None
+            shouldExit = True
 
-            print("Attempting to find the target:", params["target"])
+            print("Attempting to find the target: ", params["target"].strip())
 
             for i, char in enumerate(all_players):
+                print("Checking: ", char)
                 if char == params["target"]:
                     target: Character = all_characters[i]
-                    targetIndex = i
+                    targetIndex, shouldExit = i, False
+                    
+                    print("Target found: ", target)
                     break
             
             
-            if not target or not targetIndex:
+            if shouldExit:
                 messages.append("Invalid Target. Please try reselecting the target and try again.")
 
                 return {"messages": messages, "error": True}

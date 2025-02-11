@@ -23,6 +23,7 @@ new_character = Character(
         "accuracy": 100,
         "agility": 30
     },
+    character_data={},
     stat_modifiers = [],
     activeEffects = [],
     effects = [],

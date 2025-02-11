@@ -94,6 +94,7 @@ def pydantic_to_character(pydantic_char: PydanticCharacter) -> Character:
         team=pydantic_char.team,
         element=pydantic_char.element,
         base_stats=pydantic_char.base_stats,
+        character_data=pydantic_char.character_data,
         stat_modifiers=stat_modifiers,
         activeEffects=active_effects,
         effects=pydantic_char.effects,
@@ -132,6 +133,7 @@ def dictionary_to_character(char_dict: dict) -> Character:
         team=char_dict.get('team', ''),
         element=char_dict.get('element', ''),
         base_stats=char_dict.get('base_stats', {}),
+        character_data=char_dict.get('character_data', {}),
         stat_modifiers=char_dict.get('stat_modifiers', []),
         activeEffects=[StatModifier(
             id=effect.get('id', ''),
