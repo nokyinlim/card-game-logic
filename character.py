@@ -470,17 +470,20 @@ class Character:
 
         if didHit:
             # Call the target's damage_character method to apply damage
-            message = target.damage_character(final_damage, damage_origin=damage_origin, damage_type=element, ignore_armor=ignore_armor, critical=critical, damager_username=attacker_username, defender_username=target_username, damager=self)
+            messages = target.damage_character(final_damage, damage_origin=damage_origin, damage_type=element, ignore_armor=ignore_armor, critical=critical, damager_username=attacker_username, defender_username=target_username, damager=self)
             passive = get_passive_function(self.passives, "onHit")
             if passive: passive(self, target, final_damage, damage_origin, element, critical, ignore_armor=ignore_armor)
+            # print(f"{self.name} hits the {target.name} for {final_damage} damage!")
+            # message = f"{self.name} hits the {target.name} for {final_damage} damage!"
         else:
             print(f"{self.name} missed the {target.name}!")
-            message = f"{self.name} missed the {target.name}!"
+            messages = [f"{self.name} missed the {target.name}!"]
             passive = get_passive_function(self.passives, "onMissedHit")
-            if passive: passive(self, target)
+            if passive: passive(self, target, final_damage, damage_origin, element, critical, ignore_armor)
 
         if critical:
             print(f"{self.name} lands a critical hit on {target.name}!")
+            messages.append(f"{self.name} lands a critical hit on {target.name}!") if didHit else None
             passive = get_passive_function(self.passives, "onCritical")
             if passive: passive(self, target, didHit)
         
@@ -514,7 +517,7 @@ class Character:
                 "critical": critical, 
                 "element": element, 
                 "damage_type": damage_origin,
-                "message": message
+                "messages": messages
                 }
 
     def damage_character(self, 
@@ -525,7 +528,7 @@ class Character:
                      critical: bool = False,
                      damager: 'Character' = None,
                      damager_username: str = "",
-                     defender_username: str = "") -> str:
+                     defender_username: str = "") -> List[str]:
         """
         Damages this current character, with the given parameters:
         damage: int -> Damage value to be dealt
@@ -594,7 +597,7 @@ class Character:
                 # Get and execute the onDeath passive if it exists, so try statement not necessary
                 on_death_func = get_passive_function(passive_name, "onDeath")
                 if on_death_func:
-                    on_death_func(self, damager)
+                    on_death_func(self, damager, damage_origin, damage_type)
         else:
             # onDamage function
 
@@ -615,7 +618,7 @@ class Character:
         # Output the damage dealt
         print(f"{damager.name} attacks {self.name} for {effective_damage} {damage_type} damage!")
 
-        return f"{damager.name} attacks {self.name} for {effective_damage} {damage_type} damage!"
+        return [f"{damager.name} attacks {self.name} for {effective_damage} {damage_type} damage!"]
 
     def apply_stat_modifier(self, effect: StatModifier):
         print(f"Applied effect: {effect.stat} {effect.value} ({effect.modifier_type})")
@@ -636,6 +639,7 @@ class Character:
         ability: Ability -> Ability to be used
         targets: List[Character] -> List of targets for the ability (only if ability.type == "damage" or "debuff")
         """
+        messages: List[str] = []
         if self.base_stats["skill_points"] >= ability.cost:
             self.base_stats["skill_points"] -= ability.cost
             # Apply the effect of the ability
@@ -643,6 +647,7 @@ class Character:
             match ability.type:
                 case "modifier":
                     print(f"{self.name} used ability: {ability.name}!")
+                    messages.append(f"{self.name} used ability: {ability.name}!")
                     for effect in ability.effect:
                         print(f"Applied effect: {effect.stat} {effect.value} ({effect.modifier_type})")
                         if effect.modifier_type == "turn":
@@ -651,9 +656,16 @@ class Character:
                             self.stat_modifiers.append(effect)
                 case "damage":
                     print(f"{self.name} used ability: {ability.name}!")
+                    messages.append(f"{self.name} used ability: {ability.name} on {[char.name for char in targets]}!")
 
                     if not targets:
-                        return
+                        messages = ["No targets specified for the ability."]
+                        return {
+                            "self": self,
+                            "targets": targets,
+                            "messages": messages,
+                            "error": True
+                        }
                     
                     for target in targets:
                         target.damage_character(ability.damage["damage"], "magic", ability.damage["element"])
@@ -677,10 +689,13 @@ class Character:
                     print("Debuff Ability!")
         else:
             print(f"{self.name} does not have enough skill points to use {ability.name}.")
+            messages.append(f"{self.name} does not have enough skill points to use {ability.name}.")
         
         return {
             "self": self,
-            "targets": targets
+            "targets": targets,
+            "messages": messages,
+            "error": False
         }
 
     def cast_spell(self, spell: Spell, targets: List['Character'] = None):

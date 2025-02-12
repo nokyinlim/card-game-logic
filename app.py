@@ -137,7 +137,8 @@ async def generate_code(request: Request, session: SessionDep) -> GameBase:
         "players": [player_id],
         "player_count": 1,
         "usernames": [username],
-        "next_team": "1"
+        "next_team": "1",
+        "active": False
         # "locked_players": []
         # "active_player": [player_id]
     }
@@ -278,7 +279,6 @@ async def join_game(request: Request, session: SessionDep) -> dict:
     session.refresh(gameBase)
 
     return {}
-
 
 
 @app.post('/update-user-stats')
@@ -455,7 +455,7 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
         print(player_id)
         return {
             "type": "error", 
-            "message": "You are not the current player!", 
+            "messages": ["You are not the current player!"], 
             "error": True, 
             "current_turn": game["current_turn"][0],
             "characters": game["characters"],
@@ -504,19 +504,27 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
             if shouldExit:
                 messages.append("Invalid Target. Please try reselecting the target and try again.")
 
-                return {"messages": messages, "error": True}
+                return {"messages": messages, 
+                        "error": True,
+                        "current_turn": game["current_turn"][0],
+                        "characters": game["characters"],
+                        "players": game["players"],
+                        "player_id": player_id,
+                        "game_code": game_code}
             
             res = character.attack(target, "neutral", "", "", False, "physical")
 
             character = res["self"]
             target = res["target"]
 
+            messages = messages + res["messages"]
+
             # update games
 
             games[game_code]["characters"][game["current_turn"][0]] = character.character_to_json()
             games[game_code]["characters"][targetIndex] = target.character_to_json()
             games[game_code]["current_turn"][0] += 1
-
+            games[game_code]["current_turn"][0] %= 2
             writeGames(games)
 
             pass
@@ -525,12 +533,14 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
 
             print(f"{player_id} has skipped their turn.")
             games[game_code]["current_turn"][0] += 1
+            games[game_code]["current_turn"][0] %= 2
             writeGames(games)
             pass
     
         case "Forfeit":
             print(f"{player_id} has forfeited the game.")
-            
+            games[game_code]["current_turn"][0] += 1
+            games[game_code]["current_turn"][0] %= 2
             pass
 
         case _:
@@ -551,7 +561,8 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
                     break
             
             if not actionFound:
-                return {"message": "Invalid Action", "error": True}
+                messages.append("Invalid Ability or Spell!")
+                return {"messages": messages, "error": True}
             
             print(action_data)
 
@@ -601,6 +612,16 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
                 character = res["self"]
                 targets = res["targets"]
 
+                messages = messages + res["messages"]
+
+                if res["error"]:
+                    return {"messages": messages, "error": True,
+                            "current_turn": game["current_turn"][0],
+                            "characters": game["characters"],
+                            "players": game["players"],
+                            "player_id": player_id,
+                            "game_code": game_code}
+
                 # Update the character in the games dictionary
                 character_index = games[game_code]["current_turn"][0]
                 games[game_code]["characters"][character_index] = character.character_to_json()
@@ -613,18 +634,29 @@ def run_action(action: str, player_id: str, game_code: str, params: Dict[str, st
 
                 # Move to next turn?
                 games[game_code]["current_turn"][0] += 1
+                games[game_code]["current_turn"][0] %= 2
 
                 writeGames(games)
                 pass
             pass
-
-    return {"message": "correct player"}
+    
+    print(f"The WebSocket should return game code: {game_code}")
+    return {"messages": messages, 
+            "error": False,
+            "current_turn": game["current_turn"][0],
+            "characters": game["characters"],
+            "players": game["players"],
+            "player_id": player_id,
+            "game_code": game_code}
 
 
 @app.websocket("/game-ws")
 async def game_websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     print("message received")
+
+
+
     try:
         while True:
             data = await websocket.receive_text()
@@ -636,7 +668,7 @@ async def game_websocket_endpoint(websocket: WebSocket):
             print(f"params: {data_json["params"]}")
             print(f"game code: {data_json["game_code"]}")
             print(f"player id: {data_json["player_id"]}")
-            print(f"type: {data_json["type"]}")
+            print(f"type: {data_json['type']}")
             
 
             ret_msg: Dict[str, str] = run_action(
@@ -650,14 +682,6 @@ async def game_websocket_endpoint(websocket: WebSocket):
             print(ret_msg)
 
             await websocket.send_text(json.dumps(ret_msg))
-
-
-            # match data_json["action"]:
-            #     case "Attack":
-                    
-            #         pass
-            #     case "Forfeit":
-            #         pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         await manager.broadcast(f"Close")

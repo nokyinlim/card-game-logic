@@ -134,42 +134,19 @@ guardianStoneSkin = Spell(
 
 def guardianOnKill(char: Character):
     print(f"Fortitude Passive Activated:\nGains Fortitude upon killing a target")
-    # Implement the passive effect for the Guardian on kill
-    char.base_stats["fortitude"] += 3  # Example of gaining Fortitude
 
-def guardianOnHit(char: Character, target: Character):
+def guardianOnHit(char: Character, target: Character, final_damage: float, damage_origin: str, element: str, critical: bool, ignore_armor: bool):
     # print(f"{char.name} hit {target.name}")
-
-    if char.base_stats["opening"] == 1:
-        bonusFortitudeDamage = char.base_stats["fortitude"] * 3
-        bonusDamage = 40 + bonusFortitudeDamage
-        print(f"Counterstrike: Dealt {bonusDamage} extra damage to {target.name}!")
-
     # Implement effects related to being hit
     pass
 
-def guardianOnMissedHit(char: Character, target: Character):
+def guardianOnMissedHit(char: Character, target: Character, final_damage: float, damage_origin: str, element: str, critical: bool, ignore_armor: bool):
     print(f"{char.name} missed {target.name}")
     # Implement effects related to missed hits
     pass
 
 def guardianOnAbility(char: Character, ability: Ability, targets: List[Character] = None):
     # Implement effects related to ability usage
-    match ability.name:
-        case "Stun Bash":
-            bonusDamage = char.base_stats["fortitude"] * 3
-            for target in targets:
-                print(f"Fortitude: Dealt {bonusDamage} damage to {char.name}!")
-                target.damage_character(bonusDamage, "physical", "earth", True, False, char)
-            pass
-        case "[Ult] Fortified Strike":
-            bonusDamage = char.base_stats["fortitude"] * 10
-            bonusDamage += char.get_stat("defense")
-            print("\"From steadfast defense, let strength arise; with every guard, a Guardian's prize.\"")
-            print(f"Fortitude: Dealt {bonusDamage} additional damage to {targets[0].name}")
-            char.base_stats["fortitude"] = 0
-        case "Counterstrike":
-            char.base_stats["counterstrike"] = 1
     pass
 
 def guardianOnSpell(char: Character, spell: Spell, targets: List[Character] = None):
@@ -177,30 +154,6 @@ def guardianOnSpell(char: Character, spell: Spell, targets: List[Character] = No
     pass
 
 def guardianOnTakeDamage(character: Character, damager: Character, type: str, element: str, damage: float, critical: bool, ignore_armor: bool):
-    if character.base_stats["health"] < (character.base_stats["max_health"] * 0.4):
-        pass
-
-    if character.base_stats["counterstrike"] > 0:
-        character.base_stats["counterstrike"] = 0
-
-        instance_list = character.stat_modifiers
-
-        removal_property = "id"
-        value_to_remove = "counterstrike_defense"
-
-        # Remove the Counterstrike Magic Defense
-        character.stat_modifiers = defaults.remove_instance_with_property(instance_list, removal_property, value_to_remove)
-
-        removal_property = "id"
-        value_to_remove = "counterstrike_magic_defense"
-
-        instance_list = character.stat_modifiers
-
-        # Remove the Counterstrike Magic Defense
-        character.stat_modifiers = defaults.remove_instance_with_property(instance_list, removal_property, value_to_remove)
-
-        
-    
 
     # Implement effects when the Guardian takes damage
     pass
@@ -208,18 +161,11 @@ def guardianOnTakeDamage(character: Character, damager: Character, type: str, el
 def guardianOnDeath(character: Character, killer: Character, type: str, element: str):
     print(f"{character.name} has fallen in battle!")
     # Implement effects upon Guardian's death
-    can_defy_death: bool = (character.base_stats["can_defy_death"] == 1)
-    if can_defy_death:
-        character.base_stats["health"] = 1
-        character.base_stats["can_defy_death"] = 0
-        shared_game_data.characters.insert(0, character)
     
     pass
 
 def guardianOnCritical(character: Character, damager: Character, didHit: bool):
-    if didHit:
-        print("Guardian's Resilience Passive Activated:\nRestores a portion of damage taken as Fortitude on a Critical Hit.")
-        character.fortitude += 2  # Example of gaining Fortitude on a critical hit
+    print("Critical Hit!")
     pass
 
 def guardianOnBattleWon(character: Character, allies: List[Character], enemies: List[Character]):
