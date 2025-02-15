@@ -208,7 +208,7 @@
         "turns": 0,
         "description": "Electric-Mage"
     },
-    "Human-Fighter": {
+    "Fighter": {
         "name": "Character",
         "character_class": "Class",
         "team": "",
@@ -441,6 +441,62 @@
         "team": "",
         "element": "neutral",
         "base_stats": {
+            "health": 80,
+            "max_health": 80,
+            "mp": 20,
+            "max_mp": 20,
+            "spell_damage": 20,
+            "attack_damage": 30,
+            "critical_chance": 0.3,
+            "defense": 15,
+            "magic_defense": 15,
+            "skill_points": 40,
+            "max_skill_points": 40,
+            "accuracy": 70,
+            "agility": 25
+        },
+        "character_data": {},
+        "stat_modifiers": [],
+        "activeEffects": [],
+        "effects": [],
+        "abilities": [{
+            "name": "Summon Clone",
+            "lore": "Creates a weaker clone to fight for you until death, or for 4 turns, whichever is longer.",
+            "info": "",
+            "cost": 12,
+            "effect": [],
+            "type": "modifier",
+            "damage": {},
+            "cooldown": 8
+        }],
+        "spells": [{
+            "name": "Smoke Bomb",
+            "lore": "Increases all ally Evasion while decreasing Accuracy of all allies, except the Ninja.",
+            "info": "",
+            "mp_cost": 5,
+            "effect": [{
+
+            }],
+            "type": "debuff",
+            "damage": {
+                "damage": 0,
+                "element": "shadow",
+                "targets": "allies"
+            }
+        }],
+        "passives": "character",
+        "equipment": [],
+        "inventory": [],
+        "active_modifiers": [],
+        "turns": 0,
+        "description": "The Ninja is a stealthy character, dealing high damage and evading attacks."
+    },
+    "Test Character": {
+        "name": "Rogue",
+        "character_class": "Class",
+        "team": "",
+        "element": "neutral",
+        "base_stats": {
             "health": 100,
             "max_health": 100,
             "mp": 30,
@@ -464,8 +520,18 @@
         "passives": "character",
         "equipment": [],
         "inventory": [],
-        "active_modifiers": [],
+        "active_modifiers": [{
+            "id": "clone_limit",
+            "stat": "health",
+            "value": -15,
+            "modifier_type": "turn",
+            "duration": 9999,
+            "targetsSelf": true,
+            "applyer": null,
+            "displayName": "Clone Time Limit"
+        }],
         "turns": 0,
         "description": "Character Description"
     }
+    
 }
