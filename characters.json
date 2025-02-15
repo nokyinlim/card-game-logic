@@ -434,5 +434,38 @@
         "turns": 0,
         "description": "The Sorcerer Who United The Forest"
 
+    },
+    "Ninja": {
+        "name": "Ninja",
+        "character_class": "Ninja",
+        "team": "",
+        "element": "neutral",
+        "base_stats": {
+            "health": 100,
+            "max_health": 100,
+            "mp": 30,
+            "max_mp": 30,
+            "spell_damage": 30,
+            "attack_damage": 30,
+            "critical_chance": 0.3,
+            "defense": 30,
+            "magic_defense": 30,
+            "skill_points": 30,
+            "max_skill_points": 30,
+            "accuracy": 100,
+            "agility": 30
+        },
+        "character_data": {},
+        "stat_modifiers": [],
+        "activeEffects": [],
+        "effects": [],
+        "abilities": [],
+        "spells": [],
+        "passives": "character",
+        "equipment": [],
+        "inventory": [],
+        "active_modifiers": [],
+        "turns": 0,
+        "description": "Character Description"
     }
 }
