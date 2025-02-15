@@ -1,6 +1,6 @@
 
 import json
-from typing import List, Dict, Any, Callable
+from typing import List, Dict, Any, Callable, Optional
 
 from random import random
 import defaults
@@ -78,7 +78,7 @@ class Ability:
     damage: dict -> Damage information of the ability
         damage: int -> Damage dealt by the ability
         element: str -> Element of the ability
-        targets: str -> Targets of the ability (unused for now)
+        targets: str in [""] -> Targets of the ability 
     cooldown: int -> Cooldown of the ability
     """
     def __init__(self, name: str, lore: str, info: str, cost: int, effect: List[StatModifier], type: str, damage: dict = {
@@ -304,6 +304,7 @@ class Character:
                  passives: str,
                  equipment: List[dict],
                  inventory: List[Card],
+                 active_modifiers: List[StatModifier] = [],
                  description: str = ""): # Inventory == cards
         self.name = name
         self.character_class = character_class
@@ -318,7 +319,7 @@ class Character:
         self.spells = spells
         self.passives = passives
         self.equipment = equipment
-        self.active_modifiers: List[StatModifier] = []  # To track active modifiers
+        self.active_modifiers = active_modifiers  # To track active modifiers
         self.inventory = inventory
         self.turns = 0
         self.description = description
@@ -666,6 +667,12 @@ class Character:
                             "messages": messages,
                             "error": True
                         }
+                    for effect in ability.effect:
+                        if effect.targetsSelf:
+                            if effect.modifier_type == "turn":
+                                self.active_modifiers.append(effect)
+                            else: 
+                                self.stat_modifiers.append(effect)
                     
                     for target in targets:
                         target.damage_character(ability.damage["damage"], "magic", ability.damage["element"])
@@ -673,12 +680,8 @@ class Character:
                             for effect in ability.effect:
                                 print(f"Applied effect: {effect.stat} {effect.value} ({effect.modifier_type})")
                                 
-                                if effect.targetsSelf:
-                                    if effect.modifier_type == "turn":
-                                        self.active_modifiers.append(effect)
-                                    else: 
-                                        self.stat_modifiers.append(effect)
-                                else:
+                                
+                                if not effect.targetsSelf:
                                     if effect.modifier_type == "turn":
                                         [target.active_modifiers.append(effect) for target in targets]
                                     else:
@@ -686,7 +689,35 @@ class Character:
                             
                     pass
                 case "debuff":
-                    print("Debuff Ability!")
+                    print(f"{self.name} used ability: {ability.name}!")
+                    messages.append(f"{self.name} used ability: {ability.name} on {[char.name for char in targets]}!")
+
+                    if not targets:
+                        messages[-1] = "No targets specified for the ability."
+                        return {
+                            "self": self,
+                            "targets": targets,
+                            "messages": messages,
+                            "error": True
+                        }
+                    for effect in ability.effect:
+                        if effect.targetsSelf:
+                            if effect.modifier_type == "turn":
+                                self.active_modifiers.append(effect)
+                            else: 
+                                self.stat_modifiers.append(effect)
+                    
+                    for target in targets:
+                        if ability.effect != []:
+                            for effect in ability.effect:
+                                print(f"Applied effect: {effect.stat} {effect.value} ({effect.modifier_type})")
+                                
+                                
+                                if not effect.targetsSelf:
+                                    if effect.modifier_type == "turn":
+                                        [target.active_modifiers.append(effect) for target in targets]
+                                    else:
+                                        [target.stat_modifiers.append(effect) for target in targets]
         else:
             print(f"{self.name} does not have enough skill points to use {ability.name}.")
             messages.append(f"{self.name} does not have enough skill points to use {ability.name}.")
@@ -775,7 +806,7 @@ class Character:
         print(self.name)
         print(self.description)
 
-    def character_to_json(self, new_team = "") -> dict:
+    def character_to_json(self, new_team = "", character_data: Optional[Dict[str, Any]] = None) -> dict:
         """
         Creates a Dictionary representation of this character
         Usage: character.character_to_json()
@@ -784,10 +815,10 @@ class Character:
         return {
             "name": character.name,
             "character_class": character.character_class,
-            "team": character.team,
+            "team": new_team if new_team else character.team,
             "element": character.element,
             "base_stats": character.base_stats,
-            "character_data": character.character_data,
+            "character_data": character_data if character_data else character.character_data,
             "stat_modifiers": [
                 {
                     "id": mod.id,
@@ -955,7 +986,7 @@ class Character:
 
             options.append(ability_item)
 
-        print(options)
+        # print(options)
         return options
 
     def get_cards(self) -> List[Dict[str, Any]]:
