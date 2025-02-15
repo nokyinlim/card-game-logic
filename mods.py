@@ -461,7 +461,77 @@ def assassinOnAllyDeath(character: Character, ally: Character, killer: Character
 def assassinOnEnemyDeath(character: Character, enemy: Character, killer: Character):
     pass
 
+def get_clone(team: str, owner: str, maintain_as_character: bool = False):
+    ninja_clone = Character(
+        name="Clone Ninja",
+        character_class="Ninja",
+        team=team,
+        base_stats={
+            "health": 60,
+            "max_health": 60,
+            "mp": 5,
+            "max_mp": 5,
+            "attack_damage": 20,
+            "spell_damage": 10,
+            "critical_chance": 0.2,
+            "defense": 10,
+            "magic_defense": 10,
+            "skill_points": 15,
+            "max_skill_points": 15,
+            "accuracy": 80,
+            "agility": 15
+        },
+        character_data={
+            "owner": owner
+        },
+        stat_modifiers=[],
+        activeEffects=[],
+        effects=[],
+        abilities=[Ability(
+            name="Precision Strike",
+            lore="Deals minor physical damage to one enemy",
+            info="",
+            cost=5,
+            effect=[],
+            type="damage",
+            damage={
+                "damage": 10,
+                "element": "neutral",
+                "targets": ""
+            },
+            cooldown=0
+        )],
+        spells=[Spell(
+            name="Shuriken",
+            lore="Throws a shuriken, dealing minor magic damage to 1 enemy",
+            info="",
+            mp_cost=5,
+            effects=[],
+            type="damage",
+            damage={
+                "damage": 10,
+                "element": "neutral",
+                "targets": ""
+            },
+            cooldown=0
+        )],
+        passives="",
+        active_modifiers=[StatModifier(
+            id="clone_limit",
+            stat="health",
+            value=-15,
+            modifier_type="turn",
+            duration=9999,
+            targetsSelf=True,
+            applyer=None,
+            displayName="Clone Time Limit"
+        )],
+        equipment=[],
+        inventory=[],
+        description="A clone of the Ninja. Does this Character truly exist?"
+    )
 
+    return ninja_clone if maintain_as_character else ninja_clone.character_to_json()
 
 _defaultAssassin = Character(
     name = "Assassin",

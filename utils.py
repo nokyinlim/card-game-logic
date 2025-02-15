@@ -184,6 +184,16 @@ def dictionary_to_character(char_dict: dict) -> Character:
             damage=spell.get('damage', {'damage': 0, 'element': '', 'targets': ''}),
             cooldown=spell.get('cooldown', 0)
         ) for spell in char_dict.get('spells', [])],
+        active_modifiers=[StatModifier(
+                    id=mod["id"],
+                    stat=mod["stat"],
+                    value=mod["value"],
+                    modifier_type=mod["modifier_type"],
+                    duration=mod["duration"],
+                    targetsSelf=mod["targetsSelf"],
+                    applyer=mod["applyer"],
+                    displayName=mod["displayName"]
+                 ) for mod in char_dict.get("active_modifiers", [])],
         passives=char_dict.get('passives', ''),
         equipment=char_dict.get('equipment', []),
         inventory=char_dict.get('inventory', []),
