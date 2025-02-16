@@ -468,6 +468,19 @@
             "type": "modifier",
             "damage": {},
             "cooldown": 8
+        }, {
+            "name": "Precision Strike",
+            "lore": "Ignores Defense power. Moderate shadow-type attack with an increased Critical Chance.",
+            "info": "",
+            "cost": 4,
+            "effect": [],
+            "type": "damage",
+            "damage": {
+                "damage": 20,
+                "element": "shadow",
+                "targets": "character"
+            },
+            "cooldown": 0
         }],
         "spells": [{
             "name": "Smoke Bomb",
@@ -490,6 +503,70 @@
         "active_modifiers": [],
         "turns": 0,
         "description": "The Ninja is a stealthy character, dealing high damage and evading attacks."
+    },
+    "Rogue": {
+        "name": "Rogue",
+        "character_class": "Ninja",
+        "team": "",
+        "element": "shadow",
+        "base_stats": {
+            "health": 100,
+            "max_health": 100,
+            "mp": 16,
+            "max_mp": 16,
+            "spell_damage": 10,
+            "attack_damage": 30,
+            "critical_chance": 0.2,
+            "defense": 10,
+            "magic_defense": 10,
+            "skill_points": 40,
+            "max_skill_points": 40,
+            "accuracy": 80,
+            "agility": 20
+        },
+        "character_data": {},
+        "stat_modifiers": [],
+        "activeEffects": [],
+        "effects": [],
+        "abilities": [{
+            "name": "Sneak Attack",
+            "lore": "Deals high damage to an enemy, with a very high chance of crit.",
+            "info": "",
+            "cost": 10,
+            "effect": [],
+            "type": "damage",
+            "damage": {
+                "damage": 40,
+                "element": "shadow",
+                "targets": "character"
+            },
+            "cooldown": 0
+        }, {
+            "name": "<Rogue-specific> Hiding",
+            "lore": "Hides the Rogue from enemies and increases other Rogue skills",
+            "info": "",
+            "cost": 4,
+            "effect": [{
+                "id": "hiding",
+                "stat": "hide",
+                "value": 1,
+                "modifier_type": "status",
+                "duration": 9999,
+                "targetsSelf": true,
+                "applyer": null,
+                "displayName": "Hiding"
+            }],
+            "type": "status",
+            "damage": {},
+            "cooldown": 0
+        }],
+        "spells": [],
+        "passives": "rogue",
+        "equipment": [],
+        "inventory": [],
+        "active_modifiers": [],
+        "turns": 0,
+        "description": "A variant of the Ninja, Rogues are more skill-focused and specialize in the element of Surprise"
     },
     "Test Character": {
         "name": "Rogue",

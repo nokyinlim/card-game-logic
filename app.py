@@ -713,5 +713,5 @@ async def game_websocket_endpoint(websocket: WebSocket):
             await websocket.send_text(json.dumps(ret_msg))
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        await manager.broadcast(f"Close")
+        manager.broadcast(f"Close")
         print("disconnected")
